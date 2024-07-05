@@ -1,0 +1,10 @@
+{
+  "version": 2,
+  "dgSpecHash": "McZdCJrsz/lJBixNHyHM0LLNOURCDpc7dtLO8J4A+p6cwKscsO9U+tTxD6ab1NWyLDWoLkKOeZ8ss4hm+UXBOA==",
+  "success": true,
+  "projectFilePath": "/home/PANDA/Project/GrassBlock/GrassBlock.csproj",
+  "expectedPackageFiles": [
+    "/home/PANDA/.nuget/packages/microsoft.aspnetcore.app.ref/8.0.6/microsoft.aspnetcore.app.ref.8.0.6.nupkg.sha512"
+  ],
+  "logs": []
+}

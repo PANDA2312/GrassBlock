@@ -1,0 +1,14 @@
+/home/PANDA/Project/GrassBlock/bin/Debug/net8.0/GrassBlock
+/home/PANDA/Project/GrassBlock/bin/Debug/net8.0/GrassBlock.deps.json
+/home/PANDA/Project/GrassBlock/bin/Debug/net8.0/GrassBlock.runtimeconfig.json
+/home/PANDA/Project/GrassBlock/bin/Debug/net8.0/GrassBlock.dll
+/home/PANDA/Project/GrassBlock/bin/Debug/net8.0/GrassBlock.pdb
+/home/PANDA/Project/GrassBlock/obj/Debug/net8.0/GrassBlock.GeneratedMSBuildEditorConfig.editorconfig
+/home/PANDA/Project/GrassBlock/obj/Debug/net8.0/GrassBlock.AssemblyInfoInputs.cache
+/home/PANDA/Project/GrassBlock/obj/Debug/net8.0/GrassBlock.AssemblyInfo.cs
+/home/PANDA/Project/GrassBlock/obj/Debug/net8.0/GrassBlock.csproj.CoreCompileInputs.cache
+/home/PANDA/Project/GrassBlock/obj/Debug/net8.0/GrassBlock.dll
+/home/PANDA/Project/GrassBlock/obj/Debug/net8.0/refint/GrassBlock.dll
+/home/PANDA/Project/GrassBlock/obj/Debug/net8.0/GrassBlock.pdb
+/home/PANDA/Project/GrassBlock/obj/Debug/net8.0/GrassBlock.genruntimeconfig.cache
+/home/PANDA/Project/GrassBlock/obj/Debug/net8.0/ref/GrassBlock.dll
