@@ -1,6 +1,6 @@
 namespace GrassBlock
 {
-    namespace Type
+    namespace Types
     {
         public static class VarNum
         {

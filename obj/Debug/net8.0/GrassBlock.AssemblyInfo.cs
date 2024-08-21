@@ -13,7 +13,7 @@ using System.Reflection;
 [assembly: System.Reflection.AssemblyCompanyAttribute("GrassBlock")]
 [assembly: System.Reflection.AssemblyConfigurationAttribute("Debug")]
 [assembly: System.Reflection.AssemblyFileVersionAttribute("1.0.0.0")]
-[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0")]
+[assembly: System.Reflection.AssemblyInformationalVersionAttribute("1.0.0+e0903127133f0df8f278eab198473a25635982fb")]
 [assembly: System.Reflection.AssemblyProductAttribute("GrassBlock")]
 [assembly: System.Reflection.AssemblyTitleAttribute("GrassBlock")]
 [assembly: System.Reflection.AssemblyVersionAttribute("1.0.0.0")]

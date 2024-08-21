@@ -1,17 +1,17 @@
 {
   "format": 1,
   "restore": {
-    "/home/PANDA/Project/GrassBlock/GrassBlock.csproj": {}
+    "/home/PANDA/Projects/GrassBlock/GrassBlock.csproj": {}
   },
   "projects": {
-    "/home/PANDA/Project/GrassBlock/GrassBlock.csproj": {
+    "/home/PANDA/Projects/GrassBlock/GrassBlock.csproj": {
       "version": "1.0.0",
       "restore": {
-        "projectUniqueName": "/home/PANDA/Project/GrassBlock/GrassBlock.csproj",
+        "projectUniqueName": "/home/PANDA/Projects/GrassBlock/GrassBlock.csproj",
         "projectName": "GrassBlock",
-        "projectPath": "/home/PANDA/Project/GrassBlock/GrassBlock.csproj",
+        "projectPath": "/home/PANDA/Projects/GrassBlock/GrassBlock.csproj",
         "packagesPath": "/home/PANDA/.nuget/packages/",
-        "outputPath": "/home/PANDA/Project/GrassBlock/obj/",
+        "outputPath": "/home/PANDA/Projects/GrassBlock/obj/",
         "projectStyle": "PackageReference",
         "configFilePaths": [
           "/home/PANDA/.nuget/NuGet/NuGet.Config"
@@ -37,6 +37,16 @@
       "frameworks": {
         "net8.0": {
           "targetAlias": "net8.0",
+          "dependencies": {
+            "Nett": {
+              "target": "Package",
+              "version": "[0.15.0, )"
+            },
+            "Serilog": {
+              "target": "Package",
+              "version": "[4.0.1, )"
+            }
+          },
           "imports": [
             "net461",
             "net462",
@@ -51,7 +61,7 @@
           "downloadDependencies": [
             {
               "name": "Microsoft.AspNetCore.App.Ref",
-              "version": "[8.0.6, 8.0.6]"
+              "version": "[8.0.7, 8.0.7]"
             }
           ],
           "frameworkReferences": {
@@ -59,7 +69,7 @@
               "privateAssets": "all"
             }
           },
-          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/8.0.106/PortableRuntimeIdentifierGraph.json"
+          "runtimeIdentifierGraphPath": "/usr/share/dotnet/sdk/8.0.107/PortableRuntimeIdentifierGraph.json"
         }
       }
     }
