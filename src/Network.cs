@@ -5,11 +5,12 @@ using System.Reflection.Metadata.Ecma335;
 using System.Runtime.InteropServices;
 using System.Runtime.Versioning;
 using System.Text;
-using GrassBlock.Types;
 using GrassBlock.Protocol;
+using GrassBlock.Types;
+using Serilog;
 namespace GrassBlock
 {
-    namespace Protocol
+    namespace Network
 	{
 		//监听器
         public class Listener
@@ -31,6 +32,7 @@ namespace GrassBlock
 				}
 				set
 				{
+					if(value is null) throw new ArgumentNullException("Index is null!");
 					Connections.ForEach(conn=>{
 						if(conn.RemoteEndPoint==addr)
 						{
@@ -84,6 +86,7 @@ namespace GrassBlock
                 IPEndPoint ipEndPoint = new IPEndPoint(IPAddress.Parse(IpAddr), Port);
                 listener.Bind(ipEndPoint);
                 listener.Listen();
+				Log.Information("Start Listen on {IpAddr}:{Port}", IpAddr, Port);
                 while (true)
                 {
 					//循环接收消息
@@ -110,15 +113,13 @@ namespace GrassBlock
 			private void ProcessPacket(Int16 packetId, BytesReader reader, IPEndPoint remoteEndPoint)
 			{
 				IPacket? packet = null;
-				//判断是否为握手或登录开始包
-				if(packetId == PacketType.HANDSHAKE_OR_STARTLOGIN)
+				//判断是否为握手包
+				if(packetId == PacketType.HANDSHAKE)
 				{
-					if(Instance[remoteEndPoint] is null) packet = HandShakePacket.Create(reader, remoteEndPoint);
-					else packet = StartLoginPacket.Create(reader, remoteEndPoint);
+					packet = HandShakePacket.Create(reader, remoteEndPoint);
 				}
-				Console.WriteLine("Create packet");
 				//处理
-				if(packet != null)packet.Process();
+				if(packet is not null)packet.Process(reader);
 			}
 		}
 		//字节数组读取器
@@ -138,7 +139,7 @@ namespace GrassBlock
             {
                 int len = ReadVarInt();
                 byte[] buffer = data.ToList().GetRange(index, len).ToArray();
-                index += len;
+                index += buffer.Length;
                 return Encoding.UTF8.GetString(buffer);
             }
 			//读UInt16
@@ -158,11 +159,27 @@ namespace GrassBlock
 				return new Guid(buffer);
 			}
         }
+		public class QueueReader(Queue<byte> _data)
+		{
+			private Queue<byte> data = _data;
+			public byte[] GetPacket()
+			{
+				int len = VarNum.ReadVarInt(data);
+				byte[] res = new byte[len];
+				for(int i=0;i<len;i++)
+				{
+					byte cur;
+					if(!data.TryPeek(out cur))break;
+					res[i] = cur;
+				}
+				return res;
+			}
+		}
 		//连接类
         public class Connection
         {
             public IPEndPoint RemoteEndPoint { get; set; }
-            public string PlayerName { get; set; }
+            public string? PlayerName { get; set; }
 			public Guid UUID { get; set; }
 			//连接状态
 			public enum ConnectionStatus
@@ -178,6 +195,34 @@ namespace GrassBlock
 				Listener.Instance.Connections.Add(this);
 			}
         }
-
+		public static class PacketHandler
+		{
+			public static Queue<byte> PacketsQueue = new Queue<byte>();
+			public static QueueReader Reader = new QueueReader(PacketsQueue);
+			public static Thread ThreadProcess = new Thread(Process);
+			public static void Start()
+			{
+				ThreadProcess.Start();	
+			}
+			public static void Stop()
+			{
+				ThreadProcess.Interrupt();
+			}
+			private static void Process()
+			{
+				try
+				{
+					while (true)
+					{
+						if(PacketsQueue.Count > 0)
+						{
+							Reader.GetPacket();
+						}
+						Thread.Sleep(0);
+					}
+				}
+				catch (ThreadInterruptedException) { }
+			}
+		}
     }
 }

@@ -31,3 +31,6 @@
 /home/PANDA/Projects/GrassBlock/bin/Debug/net8.0/Serilog.dll
 /home/PANDA/Projects/GrassBlock/obj/Debug/net8.0/GrassBlock.csproj.AssemblyReference.cache
 /home/PANDA/Projects/GrassBlock/obj/Debug/net8.0/GrassBlock.csproj.CopyComplete
+/home/PANDA/Projects/GrassBlock/bin/Debug/net8.0/Serilog.Sinks.Console.dll
+/home/PANDA/Projects/GrassBlock/bin/Debug/net8.0/Serilog.Sinks.File.dll
+/home/PANDA/Projects/GrassBlock/bin/Debug/net8.0/Newtonsoft.Json.dll

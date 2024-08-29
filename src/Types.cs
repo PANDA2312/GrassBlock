@@ -24,6 +24,25 @@ namespace GrassBlock
                 }
                 return res;
             }
+            public static int ReadVarInt(Queue<byte> buffer)
+            {
+                if (buffer == null) throw new ArgumentNullException(nameof(buffer));
+                byte cur;
+                int res = 0;
+                int position = 0;
+                while (true)
+                {
+                    cur = buffer.Peek();
+                    res |= (cur & (int)SEGMENT_BITS) << position;
+                    buffer.Dequeue();
+                    if ((cur & CONTINUE_BIT) == 0) break;
+                    position += 7;
+                    if (position >= 32) throw new InvalidDataException("VarInt is too big!");
+
+                }
+                return res;
+            }
+			
             public static long ReadVarLong(byte[] buffer, ref int index)
             {
                 if (buffer == null) throw new ArgumentNullException(nameof(buffer));

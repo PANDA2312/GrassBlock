@@ -1,6 +1,7 @@
 using GrassBlock.Types;
-using GrassBlock.Protocol;
+using GrassBlock.Network;
 using System.Net;
+using Serilog;
 namespace GrassBlock
 {
     namespace Protocol
@@ -8,13 +9,20 @@ namespace GrassBlock
 		//包类型
 		public static class PacketType
 		{
-			public const Int16 HANDSHAKE_OR_STARTLOGIN = 0x00;
+			public const Int16 HANDSHAKE = 0x00;
 		}
 		//包的接口
 		public interface IPacket
         {
-			public static abstract IPacket Create(BytesReader reader, IPEndPoint _remoteEndPoint);
-			public void Process();
+			public static IPacket Create(BytesReader reader, IPEndPoint _remoteEndPoint)
+			{
+				throw new MethodAccessException("Type is not implements this method");
+			}
+			public static IPacket Create(BytesReader reader, Connection conn)
+			{
+				throw new MethodAccessException("Type is not implements this method");
+			}
+			public void Process(BytesReader reader);
         }
 		//握手包
         public class HandShakePacket(int protocolVersion, int nextState, string addr, int port, IPEndPoint remoteEndPoint) : IPacket
@@ -31,39 +39,40 @@ namespace GrassBlock
                 string _addr = reader.ReadString();
                 UInt16 _port = reader.ReadUInt16();
                 int _nextState = reader.ReadVarInt();
-				string username = reader.ReadString();
-				Console.WriteLine(username);
-				Guid uuid = reader.ReadUUID();
-				Console.WriteLine(uuid.ToString());
                 HandShakePacket packet = new HandShakePacket(_protocolVersion, _nextState, _addr, _port, _remoteEndPoint);
 				return packet;
             }
 			//处理
-			public void Process()
+			public void Process(BytesReader reader)
 			{
-				Console.WriteLine($"ProtocolVersion: {ProtocolVersion},NextState: {NextState}");
-				Console.WriteLine($"IP: {Addr}, Port:{Port}");
-				Connection connection = new Connection(RemoteEndPoint);
+				Log.Debug("Recvied HandShakePacket ProtocolVersion:{ProtocolVersion}, NextState:{NextState}", ProtocolVersion, NextState);
+				Connection conn = new Connection(RemoteEndPoint);
+				if(NextState==2)
+				{
+					int len = reader.ReadVarInt();
+					_ = reader.ReadVarInt();
+					IPacket packet = StartLoginPacket.Create(reader, conn);
+					packet.Process(reader);
+				}
 			}
         }
 		//登录开始包
-		public class StartLoginPacket(string username, Guid uuid, IPEndPoint remoteEndPoint) : IPacket
+		public class StartLoginPacket(string username, Guid uuid, Connection _connection) : IPacket
 		{
-			public string Username { get; set;} = username;
+			public string Username { get; set; } = username;
 			public Guid UUID { get; set; } = uuid;
-			public IPEndPoint RemoteEndPoint { get; set; } = remoteEndPoint;
-			public static IPacket Create(BytesReader reader, IPEndPoint _remoteEndPoint)
+			private Connection connection = _connection;
+			public static IPacket Create(BytesReader reader, Connection conn)
 			{
 				string _username = reader.ReadString();	
 				Guid _uuid = reader.ReadUUID();
-				StartLoginPacket packet = new StartLoginPacket(_username, _uuid, _remoteEndPoint);
+				StartLoginPacket packet = new StartLoginPacket(_username, _uuid, conn);
 				return packet;
 			}
-			public void Process()
+			public void Process(BytesReader reader)
 			{
-				Console.WriteLine($"User: {Username} StartLogin! UUID: {UUID.ToString()}");
-				Connection connetction = Listener.Instance[RemoteEndPoint];
-				connetction.Status = Connection.ConnectionStatus.StartLogin;
+				Log.Information("User: {Username} StartLogin! UUID: {UUID}", Username, UUID);
+				connection.Status = Connection.ConnectionStatus.StartLogin;
 			}
 		}
     }
