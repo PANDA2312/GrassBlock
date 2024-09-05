@@ -6,8 +6,9 @@ namespace GrassBlock
         {
             private const long SEGMENT_BITS = 0b_01111111;
             private const long CONTINUE_BIT = 0b_10000000;
-            public static int ReadVarInt(byte[] buffer, ref int index)
+            public static int ReadVarInt(byte[] buffer, ref int index, out int len)
             {
+				int startIndex = index;
                 if (buffer == null) throw new ArgumentNullException(nameof(buffer));
                 byte cur;
                 int res = 0;
@@ -20,8 +21,9 @@ namespace GrassBlock
                     if ((cur & CONTINUE_BIT) == 0) break;
                     position += 7;
                     if (position >= 32) throw new InvalidDataException("VarInt is too big!");
-
+					
                 }
+				len = index - startIndex;
                 return res;
             }
             public static long ReadVarLong(byte[] buffer, ref int index)
@@ -34,17 +36,17 @@ namespace GrassBlock
                 {
                     cur = buffer[index];
                     res |= (cur & SEGMENT_BITS) << position;
-                    index++;
                     if ((cur & CONTINUE_BIT) == 0) break;
                     position += 7;
+                    index++;
                     if (position >= 64) throw new InvalidDataException("VarInt is too big!");
-
                 }
                 index++;
                 return res;
             }
             public static byte[] GetVarNum(long val)
             {
+				if(val == 0) return new byte[1];
                 long tmp = val;
                 int len = 0;
                 while (tmp > 0)
@@ -63,7 +65,6 @@ namespace GrassBlock
                 }
                 return res;
             }
-            public static byte[] ConvertToVarNum(int val) => ConvertToVarNum(val);
         }
     }
 }
