@@ -19,6 +19,7 @@ namespace GrassBlock
 			public static Listener Instance { get; set; }
 			//连接列表
 			public List<Connection> Connections = new List<Connection>();
+			private Socket ServerSocket { get; set; } 
 			//连接列表索引
 			public Connection? this[IPEndPoint addr]
 			{
@@ -67,24 +68,27 @@ namespace GrassBlock
                 Port = _Port;
             }
 			//接受内容
-            public class RecivedContent(byte[] buffer,IPEndPoint remoteEndPoint)
+            public class RecivedContent(byte[] buffer, Socket clientSocket)
             {
                 public byte[] Buffer = buffer;
-				public IPEndPoint RemoteEndPoint = remoteEndPoint;
-            }
-			//创建线程并开始监听`
+            	public Socket ClientSocket = clientSocket;
+			}
+			//创建线程并开始监听
             public void StartListen()
             {
 				Instance = this;
                 Thread thread = new Thread(() => Listen());
                 thread.Start();
+				PacketHandler.Start();	
             }
 			//监听器主循环
             public void Listen()
             {
                 Socket listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                IPEndPoint ipEndPoint = new IPEndPoint(IPAddress.Parse(IpAddr), Port);
+                listener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+				IPEndPoint ipEndPoint = new IPEndPoint(IPAddress.Parse(IpAddr), Port);
                 listener.Bind(ipEndPoint);
+				ServerSocket = listener;	
                 listener.Listen();
 				Log.Information("Start Listen on {IpAddr}:{Port}", IpAddr, Port);
                 while (true)
@@ -93,15 +97,20 @@ namespace GrassBlock
                     if (!runningToken) break;
                     Socket clientSocket = listener.Accept();
                     byte[] buffer = new byte[packetLen];
-                    RecivedContent recivedContent = new RecivedContent(buffer,(IPEndPoint)clientSocket.RemoteEndPoint);
+                    RecivedContent recivedContent = new RecivedContent(buffer,clientSocket);
                     clientSocket.BeginReceive(buffer, 0, packetLen, SocketFlags.None, new AsyncCallback(ReceiveCallback), recivedContent);
                 }
             }
+			public void Send(byte[] data, IPEndPoint remoteEndPoint) => ServerSocket.SendTo(data, data.Length, SocketFlags.None, remoteEndPoint);
 			//接收消息异步回调
             private void ReceiveCallback(IAsyncResult asyncResult)
             {
                 if (asyncResult.AsyncState == null) throw new ArgumentNullException(nameof(asyncResult.AsyncState));
                 RecivedContent content = (RecivedContent)asyncResult.AsyncState;
+				for(int i=0;i<1000;i++)
+				{
+					Console.Write(content.Buffer[i].ToString("x")+" ");
+				}
 				PacketHandler.RecivedContentQueue.Enqueue(content);
             }
 			
@@ -109,19 +118,24 @@ namespace GrassBlock
 		//字节数组读取器
         public class BytesReader
         {
-            private byte[] data = { };
-            private int index;
-            public BytesReader(byte[] _data)
+            public byte[] data { get; }= { };
+			private int index = 0;
+            public int Index 
+			{
+				get => index;
+				set => index = value;
+			}
+			public BytesReader(byte[] _data)
             {
                 data = _data;
             }
 			//读VarInt和VarLong
-            public int ReadVarInt() => VarNum.ReadVarInt(data, ref index);
+            public int ReadVarInt(out int len) => VarNum.ReadVarInt(data, ref index, out len);
             public long ReadVarLong() => VarNum.ReadVarLong(data, ref index);
 			//读String
             public string ReadString()
             {
-                int len = ReadVarInt();
+                int len = ReadVarInt(out _);	
                 byte[] buffer = data.ToList().GetRange(index, len).ToArray();
                 index += buffer.Length;
                 return Encoding.UTF8.GetString(buffer);
@@ -142,23 +156,33 @@ namespace GrassBlock
 				Array.Reverse(buffer);
 				return new Guid(buffer);
 			}
+			public long ReadLong()
+            {
+                byte[] buffer = data.ToList().GetRange(index, 8).ToArray();
+                index += 8;
+                Array.Reverse(buffer);
+                return BitConverter.ToInt64(buffer);
+            }
+
         }
 		//连接类
         public class Connection
         {
+			public Socket socket { get; set; }
             public IPEndPoint RemoteEndPoint { get; set; }
             public string? PlayerName { get; set; }
 			public Guid UUID { get; set; }
 			//连接状态
 			public enum ConnectionStatus
 			{
-				HandShaking = 0,StartLogin,EncryptionReq,EncryptionRes,LoginSuccess
+				HandShaking = 0,StartLogin,EncryptionReq,EncryptionRes,LoginSuccess,ServerListPing
 			}
 			public ConnectionStatus Status { get; set; }
 			//构造函数
-			public Connection(IPEndPoint remoteEndPoint)
+			public Connection(Socket socket)
 			{
-				RemoteEndPoint = remoteEndPoint;
+				this.socket = socket;
+				RemoteEndPoint = (IPEndPoint)socket.RemoteEndPoint ?? throw new ArgumentNullException("RemoteEndPoint is null");
 				Status = ConnectionStatus.HandShaking;
 				Listener.Instance.Connections.Add(this);
 			}
@@ -169,34 +193,45 @@ namespace GrassBlock
 			private static Thread ThreadProcess = new Thread(Process);
 			public static void Start() => ThreadProcess.Start();	
 			public static void Stop() => ThreadProcess.Interrupt();
+			//这里也有可能要改
 			private static void SplitAndProcess(Listener.RecivedContent recivedContent)
 			{
 				byte[] buffer = recivedContent.Buffer;
 				BytesReader reader = new BytesReader(buffer);
-				Int16 len = (Int16)reader.ReadVarInt();
-				Int16 id = (Int16)reader.ReadVarInt();
-				int index = 2;
+				int index = 0;
 				while(index < buffer.Length)
 				{
-					ReadAndProcess(id, buffer[index..(index+len)], recivedContent.RemoteEndPoint);
-					index += len+2;
+					reader.Index = index;  
+					int len = reader.ReadVarInt(out _);
+					index = reader.Index;
+					Int16 id = (Int16)reader.ReadVarInt(out int idLen);
+					if(len == 0) break;
+					ReadAndProcess(id, buffer[(index+idLen)..(index+len)], recivedContent.ClientSocket);
+					index += len;
 				}
 			}
-
+			//这里可能要改
 			//处理包
-			private static void ReadAndProcess(Int16 packetId, byte[] content, IPEndPoint remoteEndPoint)
+			private static void ReadAndProcess(Int16 packetId, byte[] content, Socket clientSocket)
 			{
 				BytesReader reader = new BytesReader(content);
-				IPacket? packet = null;
+				IClientPacket? packet = null;
 				//判断是否为握手包
 				if(packetId == PacketType.HANDSHAKE)
 				{
-					Connection? conn = Listener.Instance[remoteEndPoint];
-					if(conn is null) packet = HandShakePacket.Create(reader, remoteEndPoint);
-					else if(conn.Status == Connection.ConnectionStatus.HandShaking) packet = StartLoginPacket.Create(reader,conn);
+					Connection? conn = Listener.Instance[(IPEndPoint)clientSocket.RemoteEndPoint];
+					if(conn is null) packet = HandShakePacket.Read(reader, clientSocket);
+					else if(conn.Status == Connection.ConnectionStatus.HandShaking) packet = StartLoginPacket.Read(reader,conn);
 				}
+				if(packetId == PacketType.PING)
+				{
+					Log.Debug("Get Ping");
+					Connection? conn = Listener.Instance[(IPEndPoint)clientSocket.RemoteEndPoint];
+					if(conn is not null && conn.Status == Connection.ConnectionStatus.ServerListPing) packet = PingRequest.Read(reader, conn);
+				}
+				Console.WriteLine();
 				//处理
-				if(packet is not null)packet.Process(reader);
+				if(packet is not null)packet.Process();
 			}
 			private static void Process()
 			{

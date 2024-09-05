@@ -1,3 +1,4 @@
+using Serilog;
 namespace GrassBlock.Text;
 public class NormalText
 {
@@ -9,27 +10,30 @@ public class NormalText
 	public bool underlined { get; set; } = false;
 	public bool strikethrough { get; set; } = false;
 	public bool obfuscated { get; set; } = false;
-	public NormalText? extra { get; set; } = null;
+	public List<NormalText>? extra { get; set; } = null;
 	public static NormalText Read(string content)
 	{
 		NormalText res = new NormalText();
-		NormalText t = res;
-		for(int i=0; i<content.Length; i++)
+		int i=0;
+		while(true)
 		{
+			NormalText tmp = new NormalText();
 			string text = string.Empty;
 			if(content[i]=='(')
 			{
+				i++;
 				while(content[i]!=')')
 				{
-					if(content[i]=='b') t.bold = true;
-					if(content[i]=='i') t.italic = true;
-					if(content[i]=='u') t.underlined = true;
-					if(content[i]=='d') t.strikethrough = true;
-					if(content[i]=='r') t.obfuscated = true;
+					if(content[i]=='b') tmp.bold = true;
+					if(content[i]=='i') tmp.italic = true;
+					if(content[i]=='u') tmp.underlined = true;
+					if(content[i]=='d') tmp.strikethrough = true;
+					if(content[i]=='r') tmp.obfuscated = true;
 					if(content[i]=='#')
 					{
-						t.color = content.Substring(i,7);
-						i+=6;
+						tmp.color = content.Substring(i,7);
+						i+=7;
+						continue;
 					}
 					if(content[i]=='@')
 					{
@@ -40,22 +44,26 @@ public class NormalText
 							color += content[i];
 							i++;
 						}
-						t.color = color;
-						break;
+						tmp.color = color;
+						continue;
 					}
 					i++;
 				}
 				i++;
-			}	
-			while(content[i]!='|')
+			}
+			while(i < content.Length && content[i] != '(')
 			{
 				text += content[i];
 				i++;
 			}
-			t.text = text;
-			i++;
-			t.extra = new NormalText();
-			t = t.extra;
+			tmp.text = text;
+			if(i==0) res = tmp;
+			if(i>0)
+			{
+				if(res.extra is null) res.extra = new List<NormalText>();
+				res.extra.Add(tmp);
+			}
+			if(i >= content.Length) break;
 		}
 		return res;
 	}

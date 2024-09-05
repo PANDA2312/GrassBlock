@@ -8,7 +8,6 @@ namespace GrassBlock
         public static void Main(string[] args)
         {
 			Log.Logger = new LoggerConfiguration().MinimumLevel.Verbose().WriteTo.Console().CreateLogger();
-			MainConfig.Load();	
             Listener listener = new Listener(MainConfig.CurrentConfig.IPAddr, MainConfig.CurrentConfig.Port);
             listener.StartListen();
         }
