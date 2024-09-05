@@ -42,16 +42,24 @@ namespace GrassBlock
                 HandShakePacket packet = new HandShakePacket(_protocolVersion, _nextState, _addr, _port, _remoteEndPoint);
 				return packet;
             }
-			//处理
+			//握手包处理
 			public void Process(BytesReader reader)
 			{
+				//日志
 				Log.Debug("Recvied HandShakePacket ProtocolVersion:{ProtocolVersion}, NextState:{NextState}", ProtocolVersion, NextState);
+				//创建连接
 				Connection conn = new Connection(RemoteEndPoint);
+				//判断下个状态是否为登录
 				if(NextState==2)
 				{
+					//读取并创建开始登录包然后处理
+					//读取长度
 					int len = reader.ReadVarInt();
+					//丢弃ID
 					_ = reader.ReadVarInt();
+					//创建
 					IPacket packet = StartLoginPacket.Create(reader, conn);
+					//处理
 					packet.Process(reader);
 				}
 			}

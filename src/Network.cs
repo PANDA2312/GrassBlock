@@ -67,12 +67,12 @@ namespace GrassBlock
                 Port = _Port;
             }
 			//接受内容
-            public class RecivedContent(byte[] buffer,IPEndPoint? remoteEndPoint)
+            public class RecivedContent(byte[] buffer,IPEndPoint remoteEndPoint)
             {
                 public byte[] Buffer = buffer;
-				public IPEndPoint? RemoteEndPoint = remoteEndPoint;
+				public IPEndPoint RemoteEndPoint = remoteEndPoint;
             }
-			//创建线程并开始监听
+			//创建线程并开始监听`
             public void StartListen()
             {
 				Instance = this;
@@ -102,25 +102,9 @@ namespace GrassBlock
             {
                 if (asyncResult.AsyncState == null) throw new ArgumentNullException(nameof(asyncResult.AsyncState));
                 RecivedContent content = (RecivedContent)asyncResult.AsyncState;
-                byte[] buffer = content.Buffer;
-                BytesReader reader = new BytesReader(buffer);
-                int len = reader.ReadVarInt();
-                Int16 packetId = (Int16)reader.ReadVarInt();
-				Console.WriteLine(packetId);
-				ProcessPacket(packetId,reader,content.RemoteEndPoint);
+				PacketHandler.RecivedContentQueue.Enqueue(content);
             }
-			//处理包
-			private void ProcessPacket(Int16 packetId, BytesReader reader, IPEndPoint remoteEndPoint)
-			{
-				IPacket? packet = null;
-				//判断是否为握手包
-				if(packetId == PacketType.HANDSHAKE)
-				{
-					packet = HandShakePacket.Create(reader, remoteEndPoint);
-				}
-				//处理
-				if(packet is not null)packet.Process(reader);
-			}
+			
 		}
 		//字节数组读取器
         public class BytesReader
@@ -159,22 +143,6 @@ namespace GrassBlock
 				return new Guid(buffer);
 			}
         }
-		public class QueueReader(Queue<byte> _data)
-		{
-			private Queue<byte> data = _data;
-			public byte[] GetPacket()
-			{
-				int len = VarNum.ReadVarInt(data);
-				byte[] res = new byte[len];
-				for(int i=0;i<len;i++)
-				{
-					byte cur;
-					if(!data.TryPeek(out cur))break;
-					res[i] = cur;
-				}
-				return res;
-			}
-		}
 		//连接类
         public class Connection
         {
@@ -197,16 +165,38 @@ namespace GrassBlock
         }
 		public static class PacketHandler
 		{
-			public static Queue<byte> PacketsQueue = new Queue<byte>();
-			public static QueueReader Reader = new QueueReader(PacketsQueue);
-			public static Thread ThreadProcess = new Thread(Process);
-			public static void Start()
+			public static Queue<Listener.RecivedContent> RecivedContentQueue = new Queue<Listener.RecivedContent>();
+			private static Thread ThreadProcess = new Thread(Process);
+			public static void Start() => ThreadProcess.Start();	
+			public static void Stop() => ThreadProcess.Interrupt();
+			private static void SplitAndProcess(Listener.RecivedContent recivedContent)
 			{
-				ThreadProcess.Start();	
+				byte[] buffer = recivedContent.Buffer;
+				BytesReader reader = new BytesReader(buffer);
+				Int16 len = (Int16)reader.ReadVarInt();
+				Int16 id = (Int16)reader.ReadVarInt();
+				int index = 2;
+				while(index < buffer.Length)
+				{
+					ReadAndProcess(id, buffer[index..(index+len)], recivedContent.RemoteEndPoint);
+					index += len+2;
+				}
 			}
-			public static void Stop()
+
+			//处理包
+			private static void ReadAndProcess(Int16 packetId, byte[] content, IPEndPoint remoteEndPoint)
 			{
-				ThreadProcess.Interrupt();
+				BytesReader reader = new BytesReader(content);
+				IPacket? packet = null;
+				//判断是否为握手包
+				if(packetId == PacketType.HANDSHAKE)
+				{
+					Connection? conn = Listener.Instance[remoteEndPoint];
+					if(conn is null) packet = HandShakePacket.Create(reader, remoteEndPoint);
+					else if(conn.Status == Connection.ConnectionStatus.HandShaking) packet = StartLoginPacket.Create(reader,conn);
+				}
+				//处理
+				if(packet is not null)packet.Process(reader);
 			}
 			private static void Process()
 			{
@@ -214,9 +204,10 @@ namespace GrassBlock
 				{
 					while (true)
 					{
-						if(PacketsQueue.Count > 0)
+						if(RecivedContentQueue.Count > 0)
 						{
-							Reader.GetPacket();
+							SplitAndProcess(RecivedContentQueue.Peek());
+							RecivedContentQueue.Dequeue();
 						}
 						Thread.Sleep(0);
 					}

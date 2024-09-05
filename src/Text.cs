@@ -31,7 +31,7 @@ public class NormalText
 						t.color = content.Substring(i,7);
 						i+=6;
 					}
-					if(content[i]==' ')
+					if(content[i]=='@')
 					{
 						string color = string.Empty;
 						i++;
