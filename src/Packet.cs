@@ -65,22 +65,10 @@ namespace GrassBlock
 					conn.Status = Connection.ConnectionStatus.ServerListPing;
 					byte[] data = new ServerListPingResponse(NormalText.Read(MainConfig.CurrentConfig.Motd)).bytes;
 					ClientSocket.Send(data);
+					ClientSocket.Send(new byte[]{ 0x01, 0x01});
 				}
 			}
         }
-		//这是那个收到的包
-		public class PingRequest(byte[] value, Connection _conn) : IClientPacket
-		{
-			public const Int16 PacketId = 0x01;
-			private byte[] Value { get; set; } = value;
-			private Connection connection = _conn;
-			public static IClientPacket Read(BytesReader reader, Connection conn) => new PingRequest(reader.data, conn);
-			public void Process()
-			{ 
-				connection.socket.Send(VarNum.GetVarNum(Value.Length + 1).Concat(BitConverter.GetBytes(PacketId)).Concat(Value).ToArray());
-				Log.Debug("RecivedPingRequest");
-			}
-		}
 		//登录开始包
 		public class StartLoginPacket(string username, Guid uuid, Connection _connection) : IClientPacket
 		{

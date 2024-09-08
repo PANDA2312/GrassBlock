@@ -51,7 +51,7 @@ namespace GrassBlock
 			//运行token,如果为false就关闭
             private bool runningToken = true;
 			//包大小
-            private const int packetLen = 1024 * 1024;
+            private const int packetLen = 1048576;
 			//构造函数
             public Listener(string _IpAddr, int _Port)
             {
@@ -82,10 +82,10 @@ namespace GrassBlock
 				PacketHandler.Start();	
             }
 			//监听器主循环
-            public void Listen()
+            public async void Listen()
             {
                 Socket listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-                listener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+				listener.ReceiveBufferSize = 1024 * 1024;
 				IPEndPoint ipEndPoint = new IPEndPoint(IPAddress.Parse(IpAddr), Port);
                 listener.Bind(ipEndPoint);
 				ServerSocket = listener;	
@@ -95,7 +95,7 @@ namespace GrassBlock
                 {
 					//循环接收消息
                     if (!runningToken) break;
-                    Socket clientSocket = listener.Accept();
+                    Socket clientSocket = await listener.AcceptAsync();
                     byte[] buffer = new byte[packetLen];
                     RecivedContent recivedContent = new RecivedContent(buffer,clientSocket);
                     clientSocket.BeginReceive(buffer, 0, packetLen, SocketFlags.None, new AsyncCallback(ReceiveCallback), recivedContent);
@@ -107,13 +107,8 @@ namespace GrassBlock
             {
                 if (asyncResult.AsyncState == null) throw new ArgumentNullException(nameof(asyncResult.AsyncState));
                 RecivedContent content = (RecivedContent)asyncResult.AsyncState;
-				for(int i=0;i<1000;i++)
-				{
-					Console.Write(content.Buffer[i].ToString("x")+" ");
-				}
 				PacketHandler.RecivedContentQueue.Enqueue(content);
-            }
-			
+			}
 		}
 		//字节数组读取器
         public class BytesReader
@@ -206,14 +201,19 @@ namespace GrassBlock
 					index = reader.Index;
 					Int16 id = (Int16)reader.ReadVarInt(out int idLen);
 					if(len == 0) break;
-					ReadAndProcess(id, buffer[(index+idLen)..(index+len)], recivedContent.ClientSocket);
+					ReadAndProcess(len-1,id, buffer[(index+idLen)..(index+len)], recivedContent.ClientSocket);
 					index += len;
 				}
 			}
 			//这里可能要改
 			//处理包
-			private static void ReadAndProcess(Int16 packetId, byte[] content, Socket clientSocket)
+			private static void ReadAndProcess(int len, Int16 packetId, byte[] content, Socket clientSocket)
 			{
+				for(int i=0;i<len;i++)
+				{
+					Console.Write(content[i].ToString("x")+" ");
+				}
+
 				BytesReader reader = new BytesReader(content);
 				IClientPacket? packet = null;
 				//判断是否为握手包
@@ -222,12 +222,6 @@ namespace GrassBlock
 					Connection? conn = Listener.Instance[(IPEndPoint)clientSocket.RemoteEndPoint];
 					if(conn is null) packet = HandShakePacket.Read(reader, clientSocket);
 					else if(conn.Status == Connection.ConnectionStatus.HandShaking) packet = StartLoginPacket.Read(reader,conn);
-				}
-				if(packetId == PacketType.PING)
-				{
-					Log.Debug("Get Ping");
-					Connection? conn = Listener.Instance[(IPEndPoint)clientSocket.RemoteEndPoint];
-					if(conn is not null && conn.Status == Connection.ConnectionStatus.ServerListPing) packet = PingRequest.Read(reader, conn);
 				}
 				Console.WriteLine();
 				//处理
@@ -242,6 +236,7 @@ namespace GrassBlock
 						if(RecivedContentQueue.Count > 0)
 						{
 							SplitAndProcess(RecivedContentQueue.Peek());
+							Log.Debug(RecivedContentQueue.Count.ToString());
 							RecivedContentQueue.Dequeue();
 						}
 						Thread.Sleep(0);
