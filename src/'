@@ -60,13 +60,13 @@ namespace GrassBlock
 				Instance = this;
                 Thread thread = new Thread(() => Listen());
                 thread.Start();
-				PacketHandler.Start();
+				PacketHandler.Start();	
             }
 			//监听器主循环
             public async void Listen()
             {
                 Socket listener = new Socket(AddressFamily.InterNetwork, SocketType.Stream, ProtocolType.Tcp);
-				listener.SetSocketOption(SocketOptionLevel.Socket, SocketOptionName.KeepAlive, true);
+				listener.SetSocketOption(SocketOptionLevel.IP, SocketOptionName.KeepAlive, true);
 				listener.ReceiveBufferSize = 1024 * 1024;
 				IPEndPoint ipEndPoint = new IPEndPoint(IPAddress.Parse(IpAddr), Port);
                 listener.Bind(ipEndPoint);

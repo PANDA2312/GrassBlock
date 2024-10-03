@@ -62,10 +62,8 @@ namespace GrassBlock
 				Connection conn = new Connection(ClientSocket);
 				if(NextState == 1)
 				{ 
-					conn.Status = Connection.ConnectionStatus.ServerListPing;
-					byte[] data = new ServerListPingResponse(NormalText.Read(MainConfig.CurrentConfig.Motd)).bytes;
-					ClientSocket.Send(data);
-					ClientSocket.Send(new byte[]{ 0x01, 0x01});
+					conn.NextState = Connection.ConnectionStatus.Status;
+					ClientSocket.Send(new ServerListPingResponse(NormalText.Read(MainConfig.CurrentConfig.Motd)).bytes);
 				}
 			}
         }
@@ -85,7 +83,7 @@ namespace GrassBlock
 			public void Process()
 			{
 				Log.Information("User: {Username} StartLogin! UUID: {UUID}", Username, UUID);
-				connection.Status = Connection.ConnectionStatus.StartLogin;
+				connection.NextState = Connection.ConnectionStatus.StartLogin;
 			}
 		}
 		public class ServerListPingResponse([NotNull] dynamic motd) : IServerPacket
